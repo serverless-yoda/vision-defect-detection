@@ -4,6 +4,7 @@ azure-ai-vision-imageanalysis
 azure-keyvault-secrets
 python-dotenv
 aiohttp
+pyodbc
 streamlit
 starlette==0.27.0
 fastapi==0.100.0
