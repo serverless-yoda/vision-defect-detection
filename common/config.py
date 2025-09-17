@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     azure_key_vault_name: str
     azure_cognitive_api_key: str
     azure_cognitive_endpoint_url: str
+    fabric_connection_string: str
 
     class Config:
         # Specify the name of the environment file and encoding to load variables from
