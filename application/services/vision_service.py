@@ -38,6 +38,7 @@ class VisionService:
         image_bytes = base64.b64decode(req.image_base64)
 
         # Analyze the image for defects
+        await self._analyzer.initialize()
         defect_result: DefectResult = await self._analyzer.analyze_image(image_bytes)
 
         # Persist the result in the repository

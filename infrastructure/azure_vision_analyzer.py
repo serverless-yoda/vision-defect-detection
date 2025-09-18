@@ -9,7 +9,7 @@ from domain.entities.defect_result import DefectResult
 from domain.exceptions import VisionAnalysisError
 
 from common.config import settings
-from common.config import get_logger
+from common.logging import get_logger
 
 from azure.identity.aio import DefaultAzureCredential
 from azure.keyvault.secrets.aio import SecretClient
@@ -37,7 +37,10 @@ class AzureVisionAnalyzer(IVisionAnalyzer):
         self.url = None
         self.headers = None
 
-    async def initialize(self):
+        #print(self.key_vault_url)
+        #print(self.azure_cognitive_api_key)
+        #print(self.azure_cognitive_endpoint_url)
+    async def initialize(self): 
         """
         Asynchronously retrieves secrets from Azure Key Vault and sets up
         the endpoint URL and headers for the Computer Vision API.
@@ -54,11 +57,12 @@ class AzureVisionAnalyzer(IVisionAnalyzer):
                     self.key = key_secret.value
 
                     # Construct full API URL and headers
-                    self.url = f"{self.endpoint.rstrip('/')}/computervision/imageanalysis:analyze?api-version=2023-04-01-preview"
+                    self.url = f"{self.endpoint.rstrip('/')}/computervision/imageanalysis:analyze?api-version=2024-02-01"
                     self.headers = {
                         "Ocp-Apim-Subscription-Key": self.key,
                         "Content-Type": "application/octet-stream",
                     }
+                    
         except Exception as e:
             logger.error(f"Failed to retrieve Key Vault secrets: {e}")
             raise VisionAnalysisError(str(e))
@@ -89,16 +93,27 @@ class AzureVisionAnalyzer(IVisionAnalyzer):
                 )
                 response.raise_for_status()
                 payload: Dict = response.json()
+                #print(payload)
         except Exception as e:
             logger.exception("Azure Vision analysis failed")
             raise VisionAnalysisError(str(e))
 
         # Extract tags containing the word "defect"
-        defect_tags = [
-            t for t in payload.get("tags", [])
-            if "defect" in t["name"].lower()
+        defect_keywords = [
+            "defect", "scratch", "crack", "dent", "chip", "corrosion", "break", "abrasion", 
+            "blemish", "discoloration", "damage", "flaw", "hole", "dent", "missing", "warp",
+            "rust", "tear", "fracture", "mark", "spot"
         ]
+        tags = payload.get("tagsResult", {}).get("values", [])
+        defect_tags = [
+            t for t in tags
+            if any(keyword in t["name"].lower() for keyword in defect_keywords)
+        ]
+        scenes = [
+            t for t in tags
+            if not any(keyword in t["name"].lower() for keyword in defect_keywords)
 
+        ]
         # Determine if the image is defective
         is_defective = len(defect_tags) > 0
 
@@ -114,5 +129,6 @@ class AzureVisionAnalyzer(IVisionAnalyzer):
             timestamp=datetime.utcnow(),
             is_defective=is_defective,
             probabilities=probs,
+            scenes=scenes,
             raw_response=payload
         )
